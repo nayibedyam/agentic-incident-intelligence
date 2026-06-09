@@ -285,7 +285,7 @@ services:
 
 - **Latency**: First token response within 3 seconds for streaming
 - **Concurrency**: Support multiple simultaneous chat sessions
-- **Security**: API key authentication for backend endpoints; secrets via environment variables
+<!-- - **Security**: API key authentication for backend endpoints; secrets via environment variables -->
 - **Extensibility**: New sub-agents and MCP connectors addable without core changes
 - **Observability**: Structured logging, request tracing
 

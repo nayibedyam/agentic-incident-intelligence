@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import AIMessage, ToolMessage
 
 from src.agent.state import AgentState
-from src.agent.tools import get_available_tools, execute_tool
+from src.agent.tools import get_available_tools_async, execute_tool
 from src.llm.provider import get_async_client, get_model_id
 
 
@@ -50,7 +50,7 @@ def _build_assistant_content(msg) -> list[dict]:
 async def orchestrator_node(state: AgentState) -> dict:
     client = get_async_client()
     model_id = get_model_id()
-    tools = get_available_tools()
+    tools = await get_available_tools_async(state["context_profile_id"])
 
     messages = _convert_messages(state)
 

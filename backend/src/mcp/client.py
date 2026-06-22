@@ -181,6 +181,13 @@ class MCPManager:
                 tools.extend(server.get_tool_definitions_for_claude())
         return tools
 
+    def get_tools_for_server_names(self, names: set[str]) -> list[dict]:
+        tools = []
+        for name, server in self._servers.items():
+            if name in names and server.is_running:
+                tools.extend(server.get_tool_definitions_for_claude())
+        return tools
+
     def get_all_tool_names(self) -> list[str]:
         return [t["name"] for t in self.get_all_tools()]
 

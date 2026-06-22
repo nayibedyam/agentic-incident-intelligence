@@ -5,7 +5,7 @@ from datetime import datetime
 from langchain_core.messages import HumanMessage, AIMessage
 
 from src.agent.graph import agent_graph
-from src.agent.tools import get_available_tools, execute_tool
+from src.agent.tools import get_available_tools_async, execute_tool
 from src.context.loader import load_context_for_session
 from src.db.database import get_db
 
@@ -88,7 +88,7 @@ async def handle_chat_stream(message: str, session_id: str | None, context_id: s
 
     client = get_async_client()
     model_id = get_model_id()
-    tools = get_available_tools()
+    tools = await get_available_tools_async(context_id)
 
     messages = _to_anthropic_messages(history)
 

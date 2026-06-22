@@ -1,6 +1,7 @@
 import json
 
 from src.mcp.client import mcp_manager
+from src.mcp.manager import get_linked_servers_for_context
 
 BUILT_IN_TOOLS = [
     {
@@ -44,9 +45,20 @@ BUILT_IN_TOOLS = [
 ]
 
 
-def get_available_tools() -> list[dict]:
+def get_available_tools(context_id: str | None = None) -> list[dict]:
     tools = list(BUILT_IN_TOOLS)
-    tools.extend(mcp_manager.get_all_tools())
+    if context_id:
+        tools.extend(mcp_manager.get_tools_for_context(context_id))
+    else:
+        tools.extend(mcp_manager.get_all_tools())
+    return tools
+
+
+async def get_available_tools_async(context_id: str) -> list[dict]:
+    tools = list(BUILT_IN_TOOLS)
+    linked_servers = await get_linked_servers_for_context(context_id)
+    linked_names = {s["name"] for s in linked_servers}
+    tools.extend(mcp_manager.get_tools_for_server_names(linked_names))
     return tools
 
 

@@ -61,11 +61,17 @@ export default function ContextSetupPage({ onCreated }: Props) {
     try {
       if (id) {
         await contextApi.update(id, { name, description, system_prompt: systemPrompt });
+        onCreated();
+        navigate('/chat');
       } else {
-        await contextApi.create({ name, description, system_prompt: systemPrompt });
+        const created = await contextApi.create({ name, description, system_prompt: systemPrompt });
+        onCreated();
+        if (allServers.length > 0) {
+          navigate(`/contexts/${created.id}/edit`);
+        } else {
+          navigate('/chat');
+        }
       }
-      onCreated();
-      navigate('/chat');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save context');
     } finally {
@@ -76,9 +82,16 @@ export default function ContextSetupPage({ onCreated }: Props) {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>
-          {id ? 'Edit Context Profile' : 'Welcome to Incident Intelligence'}
-        </h1>
+        <div style={styles.titleRow}>
+          <h1 style={styles.title}>
+            {id ? 'Edit Context Profile' : 'Welcome to Incident Intelligence'}
+          </h1>
+          {id && (
+            <button type="button" style={styles.backBtn} onClick={() => navigate('/contexts')}>
+              Back
+            </button>
+          )}
+        </div>
         {!id && (
           <p style={styles.subtitle}>
             Before you begin, define your system context. This tells the agent about your service, its architecture, and common failure modes.
@@ -117,26 +130,30 @@ export default function ContextSetupPage({ onCreated }: Props) {
             />
           </div>
 
-          {id && allServers.length > 0 && (
+          {id && (
             <div style={styles.field}>
               <label style={styles.label}>Linked MCP Servers</label>
               <p style={styles.hint}>Select which MCP servers this context can use for tool access.</p>
-              <div style={styles.serverList}>
-                {allServers.map(server => (
-                  <div key={server.id} style={styles.serverItem} onClick={() => handleToggleServer(server.id)}>
-                    <input
-                      type="checkbox"
-                      checked={linkedServerIds.has(server.id)}
-                      onChange={() => handleToggleServer(server.id)}
-                      style={styles.checkbox}
-                    />
-                    <div>
-                      <span style={styles.serverName}>{server.name}</span>
-                      {server.description && <span style={styles.serverDesc}> - {server.description}</span>}
+              {allServers.length > 0 ? (
+                <div style={styles.serverList}>
+                  {allServers.map(server => (
+                    <div key={server.id} style={styles.serverItem} onClick={() => handleToggleServer(server.id)}>
+                      <input
+                        type="checkbox"
+                        checked={linkedServerIds.has(server.id)}
+                        onChange={() => handleToggleServer(server.id)}
+                        style={styles.checkbox}
+                      />
+                      <div>
+                        <span style={styles.serverName}>{server.name}</span>
+                        {server.description && <span style={styles.serverDesc}> - {server.description}</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={styles.hint}>No MCP servers registered yet. Register one to give this context access to external tools.</p>
+              )}
               <button type="button" style={styles.linkBtn} onClick={() => navigate('/mcp-servers')}>
                 Manage MCP Servers
               </button>
@@ -145,7 +162,7 @@ export default function ContextSetupPage({ onCreated }: Props) {
 
           {!id && (
             <p style={styles.hint}>
-              After creating this context, you can link MCP servers by editing it.
+              After creating this context, you'll be able to link MCP servers for tool access.
             </p>
           )}
 
@@ -176,9 +193,22 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     border: '1px solid var(--border)',
   },
+  titleRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '0.5rem',
+  },
   title: {
     fontSize: '1.5rem',
-    marginBottom: '0.5rem',
+  },
+  backBtn: {
+    padding: '0.4rem 0.75rem',
+    borderRadius: '6px',
+    background: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
+    fontSize: '0.8rem',
   },
   subtitle: {
     color: 'var(--text-secondary)',

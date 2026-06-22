@@ -13,7 +13,7 @@ export ANTHROPIC_API_KEY="sk-ant-your-key-here"
 
 # --- AWS Bedrock (when LLM_PROVIDER=bedrock) ---
 # Option 1: Profile-based (recommended — uses ~/.aws/credentials)
-export AWS_PROFILE=""
+export AWS_PROFILE="staging-strln"
 export AWS_REGION="us-west-2"
 
 # Option 2: Explicit keys (leave AWS_PROFILE empty)

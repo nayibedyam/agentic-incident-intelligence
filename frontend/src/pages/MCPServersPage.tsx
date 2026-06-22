@@ -10,6 +10,8 @@ export default function MCPServersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', command: '', args: '', env: '' });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const loadServers = async () => {
@@ -60,6 +62,8 @@ export default function MCPServersPage() {
       }
     }
 
+    setSaving(true);
+    setError('');
     try {
       if (editingId) {
         await mcpApi.update(editingId, { name: form.name, description: form.description || undefined, command: form.command, args, env });
@@ -70,16 +74,25 @@ export default function MCPServersPage() {
       await loadServers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this MCP server? It will be unlinked from all context profiles.')) return;
-    await mcpApi.delete(id);
-    await loadServers();
+    setTogglingId(id);
+    try {
+      await mcpApi.delete(id);
+      await loadServers();
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const handleToggle = async (server: MCPServer) => {
+    setTogglingId(server.id);
+    setError('');
     try {
       if (server.running) {
         await mcpApi.stop(server.id);
@@ -89,11 +102,18 @@ export default function MCPServersPage() {
       await loadServers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to toggle server');
+    } finally {
+      setTogglingId(null);
     }
   };
 
   if (loading) {
-    return <div style={styles.loading}>Loading MCP servers...</div>;
+    return (
+      <div style={styles.loading}>
+        <span className="spinner" style={{ width: '24px', height: '24px', borderWidth: '3px' }} />
+        <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>Loading MCP servers...</span>
+      </div>
+    );
   }
 
   return (
@@ -140,7 +160,9 @@ export default function MCPServersPage() {
             </div>
             <div style={styles.formActions}>
               <button type="button" style={styles.secondaryBtn} onClick={resetForm}>Cancel</button>
-              <button type="submit" style={styles.primaryBtn}>{editingId ? 'Update' : 'Register'}</button>
+              <button type="submit" style={styles.primaryBtn} disabled={saving}>
+                {saving ? <><span className="spinner" style={{ marginRight: '0.5rem' }} /> Saving...</> : editingId ? 'Update' : 'Register'}
+              </button>
             </div>
           </form>
         </div>
@@ -150,31 +172,39 @@ export default function MCPServersPage() {
         {servers.length === 0 && !showForm && (
           <div style={styles.empty}>No MCP servers registered yet. Click "+ Add Server" to get started.</div>
         )}
-        {servers.map(server => (
-          <div key={server.id} style={styles.card}>
-            <div style={styles.cardHeader}>
-              <div style={styles.cardTitleRow}>
-                <h3 style={styles.cardTitle}>{server.name}</h3>
-                <span style={{ ...styles.badge, background: server.running ? 'var(--success)' : 'var(--bg-tertiary)' }}>
-                  {server.running ? 'Running' : 'Stopped'}
-                </span>
+        {servers.map(server => {
+          const isToggling = togglingId === server.id;
+          return (
+            <div key={server.id} style={styles.card}>
+              <div style={styles.cardHeader}>
+                <div style={styles.cardTitleRow}>
+                  <h3 style={styles.cardTitle}>{server.name}</h3>
+                  <span style={{ ...styles.badge, background: server.running ? 'var(--success)' : 'var(--bg-tertiary)', color: server.running ? 'white' : 'var(--text-secondary)' }}>
+                    {isToggling ? <span className="spinner" style={{ width: '10px', height: '10px', borderWidth: '1.5px' }} /> : null}
+                    {' '}{server.running ? 'Running' : 'Stopped'}
+                  </span>
+                </div>
+                <span style={styles.cardDate}>{new Date(server.created_at).toLocaleDateString()}</span>
               </div>
-              <span style={styles.cardDate}>{new Date(server.created_at).toLocaleDateString()}</span>
+              {server.description && <p style={styles.cardDesc}>{server.description}</p>}
+              <p style={styles.cardCommand}>{server.command} {(server.args || []).slice(0, 3).join(' ')}{(server.args || []).length > 3 ? ' ...' : ''}</p>
+              {Object.keys(server.env || {}).length > 0 && (
+                <p style={styles.cardEnvCount}>{Object.keys(server.env).length} env variable(s) configured</p>
+              )}
+              <div style={styles.cardActions}>
+                <button
+                  style={{ ...styles.toggleBtn, opacity: isToggling ? 0.7 : 1 }}
+                  onClick={() => handleToggle(server)}
+                  disabled={isToggling}
+                >
+                  {isToggling ? <><span className="spinner" style={{ width: '12px', height: '12px', borderWidth: '1.5px', marginRight: '0.375rem' }} />{server.running ? 'Stopping...' : 'Starting...'}</> : server.running ? 'Stop' : 'Start'}
+                </button>
+                <button style={styles.editBtn} onClick={() => handleEdit(server)} disabled={isToggling}>Edit</button>
+                <button style={styles.deleteBtn} onClick={() => handleDelete(server.id)} disabled={isToggling}>Delete</button>
+              </div>
             </div>
-            {server.description && <p style={styles.cardDesc}>{server.description}</p>}
-            <p style={styles.cardCommand}>{server.command} {server.args.slice(0, 3).join(' ')}{server.args.length > 3 ? ' ...' : ''}</p>
-            {Object.keys(server.env).length > 0 && (
-              <p style={styles.cardEnvCount}>{Object.keys(server.env).length} env variable(s) configured</p>
-            )}
-            <div style={styles.cardActions}>
-              <button style={styles.toggleBtn} onClick={() => handleToggle(server)}>
-                {server.running ? 'Stop' : 'Start'}
-              </button>
-              <button style={styles.editBtn} onClick={() => handleEdit(server)}>Edit</button>
-              <button style={styles.deleteBtn} onClick={() => handleDelete(server.id)}>Delete</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -182,14 +212,14 @@ export default function MCPServersPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { maxWidth: '800px', margin: '0 auto', padding: '2rem' },
-  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-secondary)' },
+  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' },
   title: { fontSize: '1.5rem' },
   subtitle: { color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' },
   actions: { display: 'flex', gap: '0.75rem' },
-  primaryBtn: { padding: '0.5rem 1rem', borderRadius: '8px', background: 'var(--accent)', color: 'white', fontWeight: 500, fontSize: '0.875rem' },
+  primaryBtn: { padding: '0.5rem 1rem', borderRadius: '8px', background: 'var(--accent)', color: 'white', fontWeight: 500, fontSize: '0.875rem', display: 'flex', alignItems: 'center' },
   secondaryBtn: { padding: '0.5rem 1rem', borderRadius: '8px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', fontSize: '0.875rem' },
-  error: { color: 'var(--error)', fontSize: '0.875rem', marginBottom: '1rem' },
+  error: { color: 'var(--error)', fontSize: '0.875rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', background: 'rgba(239,68,68,0.1)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)' },
   formCard: { background: 'var(--bg-secondary)', borderRadius: '10px', padding: '1.5rem', border: '1px solid var(--border)', marginBottom: '1.5rem' },
   formTitle: { fontSize: '1.1rem', marginBottom: '1rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
@@ -205,13 +235,13 @@ const styles: Record<string, React.CSSProperties> = {
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' },
   cardTitleRow: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
   cardTitle: { fontSize: '1.05rem' },
-  badge: { fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', color: 'white', fontWeight: 500 },
+  badge: { fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' },
   cardDate: { color: 'var(--text-secondary)', fontSize: '0.75rem' },
   cardDesc: { color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.375rem' },
   cardCommand: { fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '0.375rem 0.625rem', borderRadius: '4px', marginBottom: '0.375rem' },
   cardEnvCount: { fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' },
   cardActions: { display: 'flex', gap: '0.5rem', marginTop: '0.5rem' },
-  toggleBtn: { padding: '0.375rem 0.75rem', borderRadius: '6px', background: 'var(--accent)', color: 'white', fontSize: '0.8rem', fontWeight: 500 },
+  toggleBtn: { padding: '0.375rem 0.75rem', borderRadius: '6px', background: 'var(--accent)', color: 'white', fontSize: '0.8rem', fontWeight: 500, display: 'inline-flex', alignItems: 'center' },
   editBtn: { padding: '0.375rem 0.75rem', borderRadius: '6px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', fontSize: '0.8rem' },
   deleteBtn: { padding: '0.375rem 0.75rem', borderRadius: '6px', background: 'transparent', color: 'var(--error)', border: '1px solid var(--error)', fontSize: '0.8rem' },
 };

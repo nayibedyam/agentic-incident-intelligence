@@ -100,6 +100,8 @@ export default function ChatPage({ contexts }: Props) {
     navigate(`/chat/${session.id}`);
   };
 
+  const isThinking = streaming && !streamingContent;
+
   return (
     <div style={styles.layout}>
       <SessionSidebar
@@ -108,6 +110,7 @@ export default function ChatPage({ contexts }: Props) {
         onSelect={handleSelectSession}
         onNew={handleNewSession}
         onManageContexts={() => navigate('/contexts')}
+        onManageMCP={() => navigate('/mcp-servers')}
       />
 
       <div style={styles.main}>
@@ -137,10 +140,25 @@ export default function ChatPage({ contexts }: Props) {
               </div>
             </div>
           ))}
+
+          {isThinking && (
+            <div style={styles.assistantMsg}>
+              <div style={styles.msgRole}>Agent</div>
+              <div style={styles.thinkingContainer}>
+                <div className="thinking-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <span style={styles.thinkingText}>Thinking...</span>
+              </div>
+            </div>
+          )}
+
           {streaming && streamingContent && (
             <div style={styles.assistantMsg}>
               <div style={styles.msgRole}>Agent</div>
-              <div style={styles.msgContent}>
+              <div style={styles.msgContent} className="streaming-cursor">
                 <ReactMarkdown>{streamingContent}</ReactMarkdown>
               </div>
             </div>
@@ -157,8 +175,8 @@ export default function ChatPage({ contexts }: Props) {
             placeholder="Describe the incident or ask a question..."
             disabled={streaming}
           />
-          <button style={styles.sendBtn} onClick={handleSend} disabled={streaming || !input.trim()}>
-            Send
+          <button style={{ ...styles.sendBtn, ...(streaming ? styles.sendBtnDisabled : {}) }} onClick={handleSend} disabled={streaming || !input.trim()}>
+            {streaming ? <span className="spinner" /> : 'Send'}
           </button>
         </div>
       </div>
@@ -223,6 +241,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     lineHeight: 1.6,
   },
+  thinkingContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.25rem 0',
+  },
+  thinkingText: {
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+    fontStyle: 'italic',
+  },
   inputArea: {
     display: 'flex',
     gap: '0.75rem',
@@ -246,5 +275,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'white',
     fontWeight: 600,
     fontSize: '0.875rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '70px',
+  },
+  sendBtnDisabled: {
+    opacity: 0.7,
   },
 };

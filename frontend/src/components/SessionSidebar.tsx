@@ -6,9 +6,10 @@ interface Props {
   onSelect: (session: ChatSession) => void;
   onNew: () => void;
   onManageContexts: () => void;
+  onManageMCP: () => void;
 }
 
-export default function SessionSidebar({ sessions, activeSessionId, onSelect, onNew, onManageContexts }: Props) {
+export default function SessionSidebar({ sessions, activeSessionId, onSelect, onNew, onManageContexts, onManageMCP }: Props) {
   return (
     <div style={styles.sidebar}>
       <div style={styles.header}>
@@ -30,6 +31,7 @@ export default function SessionSidebar({ sessions, activeSessionId, onSelect, on
       <div style={styles.footer}>
         <button style={styles.footerBtn} onClick={onNew}>+ New Chat</button>
         <button style={styles.footerBtn} onClick={onManageContexts}>Manage Contexts</button>
+        <button style={styles.footerBtn} onClick={onManageMCP}>MCP Servers</button>
       </div>
     </div>
   );

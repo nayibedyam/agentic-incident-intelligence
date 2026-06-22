@@ -38,15 +38,14 @@ async def create_profile(data: dict) -> dict:
     now = datetime.utcnow().isoformat()
     await db.execute(
         """INSERT INTO context_profiles (id, name, description, system_prompt,
-           knowledge_sources, tool_configs, severity_rules, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           knowledge_sources, severity_rules, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             profile_id,
             data["name"],
             data.get("description"),
             data["system_prompt"],
             json.dumps(data.get("knowledge_sources")),
-            json.dumps(data.get("tool_configs")),
             json.dumps(data.get("severity_rules")),
             now,
             now,
@@ -69,7 +68,7 @@ async def update_profile(profile_id: str, data: dict) -> dict | None:
         if key in data and data[key] is not None:
             fields.append(f"{key} = ?")
             values.append(data[key])
-    for key in ["knowledge_sources", "tool_configs", "severity_rules"]:
+    for key in ["knowledge_sources", "severity_rules"]:
         if key in data and data[key] is not None:
             fields.append(f"{key} = ?")
             values.append(json.dumps(data[key]))
@@ -97,7 +96,7 @@ async def delete_profile(profile_id: str) -> bool:
 
 def _row_to_dict(row) -> dict:
     d = dict(row)
-    for key in ["knowledge_sources", "tool_configs", "severity_rules"]:
+    for key in ["knowledge_sources", "severity_rules"]:
         if d.get(key) and isinstance(d[key], str):
             d[key] = json.loads(d[key])
     return d

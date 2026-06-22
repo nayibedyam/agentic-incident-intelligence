@@ -24,6 +24,9 @@ export default function ContextManagePage({ contexts, onRefresh }: Props) {
           <button style={styles.secondaryBtn} onClick={() => navigate('/chat')}>
             Back to Chat
           </button>
+          <button style={styles.secondaryBtn} onClick={() => navigate('/mcp-servers')}>
+            MCP Servers
+          </button>
           <button style={styles.primaryBtn} onClick={() => navigate('/contexts/new')}>
             + New Context
           </button>

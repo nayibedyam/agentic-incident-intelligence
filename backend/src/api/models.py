@@ -6,7 +6,6 @@ class ContextProfileCreate(BaseModel):
     description: str | None = None
     system_prompt: str
     knowledge_sources: list | None = None
-    tool_configs: list | None = None
     severity_rules: dict | None = None
 
 
@@ -15,7 +14,6 @@ class ContextProfileUpdate(BaseModel):
     description: str | None = None
     system_prompt: str | None = None
     knowledge_sources: list | None = None
-    tool_configs: list | None = None
     severity_rules: dict | None = None
 
 
@@ -25,7 +23,6 @@ class ContextProfileResponse(BaseModel):
     description: str | None
     system_prompt: str
     knowledge_sources: list | None
-    tool_configs: list | None
     severity_rules: dict | None
     created_at: str
     updated_at: str

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.db.database import close_db
 from src.db.migrations import run_migrations
+from src.mcp.client import mcp_manager
 from src.api.routes import router
 
 
@@ -12,6 +13,7 @@ from src.api.routes import router
 async def lifespan(app: FastAPI):
     await run_migrations()
     yield
+    await mcp_manager.stop_all()
     await close_db()
 
 

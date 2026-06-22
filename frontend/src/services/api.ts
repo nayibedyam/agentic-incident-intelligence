@@ -5,6 +5,8 @@ import type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  MCPServer,
+  MCPServerCreate,
 } from '../types';
 
 const BASE_URL = '/api';
@@ -41,6 +43,42 @@ export const contextApi = {
 
   delete: (id: string) =>
     request<void>(`/context/${id}`, { method: 'DELETE' }),
+
+  getLinkedServers: (id: string) =>
+    request<MCPServer[]>(`/context/${id}/mcp-servers`),
+
+  linkServer: (contextId: string, serverId: string) =>
+    request<void>(`/context/${contextId}/mcp-servers/${serverId}`, { method: 'POST' }),
+
+  unlinkServer: (contextId: string, serverId: string) =>
+    request<void>(`/context/${contextId}/mcp-servers/${serverId}`, { method: 'DELETE' }),
+};
+
+export const mcpApi = {
+  list: () => request<MCPServer[]>('/mcp/servers'),
+
+  get: (id: string) => request<MCPServer>(`/mcp/servers/${id}`),
+
+  create: (data: MCPServerCreate) =>
+    request<MCPServer>('/mcp/servers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<MCPServerCreate>) =>
+    request<MCPServer>(`/mcp/servers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/mcp/servers/${id}`, { method: 'DELETE' }),
+
+  start: (id: string) =>
+    request<{ name: string; tools: string[]; running: boolean }>(`/mcp/servers/${id}/start`, { method: 'POST' }),
+
+  stop: (id: string) =>
+    request<void>(`/mcp/servers/${id}/stop`, { method: 'POST' }),
 };
 
 export const chatApi = {

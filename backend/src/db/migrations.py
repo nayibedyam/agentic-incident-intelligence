@@ -7,10 +7,28 @@ CREATE TABLE IF NOT EXISTS context_profiles (
     description TEXT,
     system_prompt TEXT NOT NULL,
     knowledge_sources JSON,
-    tool_configs JSON,
     severity_rules JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mcp_servers (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    command TEXT NOT NULL,
+    args JSON NOT NULL DEFAULT '[]',
+    env JSON NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS context_mcp_links (
+    context_profile_id TEXT NOT NULL,
+    mcp_server_id TEXT NOT NULL,
+    PRIMARY KEY (context_profile_id, mcp_server_id),
+    FOREIGN KEY (context_profile_id) REFERENCES context_profiles(id) ON DELETE CASCADE,
+    FOREIGN KEY (mcp_server_id) REFERENCES mcp_servers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS chat_sessions (

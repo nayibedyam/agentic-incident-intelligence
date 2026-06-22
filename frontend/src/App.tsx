@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import ChatPage from './pages/ChatPage';
 import ContextSetupPage from './pages/ContextSetupPage';
 import ContextManagePage from './pages/ContextManagePage';
+import MCPServersPage from './pages/MCPServersPage';
 import { contextApi } from './services/api';
 import type { ContextProfile } from './types';
 
@@ -38,6 +39,7 @@ export default function App() {
       <Route path="/contexts/new" element={<ContextSetupPage onCreated={refreshContexts} />} />
       <Route path="/contexts/:id/edit" element={<ContextSetupPage onCreated={refreshContexts} />} />
       <Route path="/contexts" element={<ContextManagePage contexts={contexts} onRefresh={refreshContexts} />} />
+      <Route path="/mcp-servers" element={<MCPServersPage />} />
       <Route path="/chat" element={<ChatPage contexts={contexts} />} />
       <Route path="/chat/:sessionId" element={<ChatPage contexts={contexts} />} />
     </Routes>

@@ -21,4 +21,5 @@ services:
       - DATABASE_PATH=/app/data/app.db
     volumes:
       - ./data:/app/data
-      - ${HOME}/.aws:/root/.aws:ro  # Mount AWS credentials for profile-based auth
+      - ${HOME}/.aws:/root/.aws:ro
+      - /var/run/docker.sock:/var/run/docker.sock  # Required to spawn MCP container

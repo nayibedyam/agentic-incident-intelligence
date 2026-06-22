@@ -4,7 +4,6 @@ export interface ContextProfile {
   description: string | null;
   system_prompt: string;
   knowledge_sources: KnowledgeSource[] | null;
-  tool_configs: ToolConfig[] | null;
   severity_rules: Record<string, string[]> | null;
   created_at: string;
   updated_at: string;
@@ -15,10 +14,24 @@ export interface KnowledgeSource {
   path: string;
 }
 
-export interface ToolConfig {
-  type: string;
-  server: string;
-  project?: string;
+export interface MCPServer {
+  id: string;
+  name: string;
+  description: string | null;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  running: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MCPServerCreate {
+  name: string;
+  description?: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
 }
 
 export interface ChatSession {
@@ -61,6 +74,5 @@ export interface ContextProfileCreate {
   description?: string;
   system_prompt: string;
   knowledge_sources?: KnowledgeSource[];
-  tool_configs?: ToolConfig[];
   severity_rules?: Record<string, string[]>;
 }

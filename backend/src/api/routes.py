@@ -1,6 +1,7 @@
 import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from src.api.models import (
     ChatRequest,
@@ -18,7 +19,20 @@ from src.context.manager import (
     update_profile,
     delete_profile,
 )
+from src.mcp.manager import (
+    list_mcp_servers,
+    get_mcp_server,
+    create_mcp_server,
+    update_mcp_server,
+    delete_mcp_server,
+    get_linked_servers_for_context,
+    get_linked_server_ids_for_context,
+    link_server_to_context,
+    unlink_server_from_context,
+)
+from src.mcp.client import mcp_manager
 from src.agent.orchestrator import handle_chat, handle_chat_stream
+from src.agent.tools import get_available_tools
 from src.db.database import get_db
 
 router = APIRouter(prefix="/api")
@@ -60,6 +74,116 @@ async def delete_context(profile_id: str):
     deleted = await delete_profile(profile_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Context profile not found")
+
+
+# --- Context <-> MCP Linking ---
+
+
+@router.get("/context/{profile_id}/mcp-servers")
+async def get_context_mcp_servers(profile_id: str):
+    servers = await get_linked_servers_for_context(profile_id)
+    return servers
+
+
+@router.post("/context/{profile_id}/mcp-servers/{server_id}", status_code=204)
+async def link_mcp_to_context(profile_id: str, server_id: str):
+    await link_server_to_context(profile_id, server_id)
+
+
+@router.delete("/context/{profile_id}/mcp-servers/{server_id}", status_code=204)
+async def unlink_mcp_from_context(profile_id: str, server_id: str):
+    await unlink_server_from_context(profile_id, server_id)
+
+
+# --- MCP Server CRUD ---
+
+
+class MCPServerCreate(BaseModel):
+    name: str
+    description: str | None = None
+    command: str
+    args: list[str] = []
+    env: dict[str, str] = {}
+
+
+class MCPServerUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    command: str | None = None
+    args: list[str] | None = None
+    env: dict[str, str] | None = None
+
+
+@router.get("/mcp/servers")
+async def list_servers():
+    servers = await list_mcp_servers()
+    for server in servers:
+        server["running"] = server["name"] in mcp_manager.running_servers
+    return servers
+
+
+@router.post("/mcp/servers", status_code=201)
+async def create_server(data: MCPServerCreate):
+    server = await create_mcp_server(data.model_dump())
+    server["running"] = False
+    return server
+
+
+@router.get("/mcp/servers/{server_id}")
+async def get_server(server_id: str):
+    server = await get_mcp_server(server_id)
+    if not server:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+    server["running"] = server["name"] in mcp_manager.running_servers
+    return server
+
+
+@router.put("/mcp/servers/{server_id}")
+async def update_server(server_id: str, data: MCPServerUpdate):
+    server = await update_mcp_server(server_id, data.model_dump(exclude_unset=True))
+    if not server:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+    server["running"] = server["name"] in mcp_manager.running_servers
+    return server
+
+
+@router.delete("/mcp/servers/{server_id}", status_code=204)
+async def delete_server(server_id: str):
+    server = await get_mcp_server(server_id)
+    if server and server["name"] in mcp_manager.running_servers:
+        await mcp_manager.unregister_server(server["name"])
+    deleted = await delete_mcp_server(server_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+
+
+@router.post("/mcp/servers/{server_id}/start")
+async def start_server(server_id: str):
+    server = await get_mcp_server(server_id)
+    if not server:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+    try:
+        tools = await mcp_manager.register_server(
+            name=server["name"],
+            command=server["command"],
+            args=server.get("args", []),
+            env=server.get("env", {}),
+        )
+        return {"name": server["name"], "tools": [t["name"] for t in tools], "running": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start: {e}")
+
+
+@router.post("/mcp/servers/{server_id}/stop", status_code=204)
+async def stop_server(server_id: str):
+    server = await get_mcp_server(server_id)
+    if server and server["name"] in mcp_manager.running_servers:
+        await mcp_manager.unregister_server(server["name"])
+
+
+@router.get("/mcp/tools")
+async def list_tools():
+    return get_available_tools()
 
 
 # --- Chat Endpoints ---
@@ -133,4 +257,10 @@ async def delete_session(session_id: str):
 
 @router.get("/agent/status")
 async def agent_status():
-    return {"status": "healthy", "agent": "orchestrator", "version": "0.1.0"}
+    return {
+        "status": "healthy",
+        "agent": "orchestrator",
+        "version": "0.1.0",
+        "mcp_servers": mcp_manager.running_servers,
+        "available_tools": [t["name"] for t in get_available_tools()],
+    }

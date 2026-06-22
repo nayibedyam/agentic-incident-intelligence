@@ -144,7 +144,7 @@ export default function ChatPage({ contexts }: Props) {
           {messages.map((msg) => (
             <div key={msg.id} style={msg.role === 'user' ? styles.userMsg : styles.assistantMsg}>
               <div style={styles.msgRole}>{msg.role === 'user' ? 'You' : 'Agent'}</div>
-              <div style={styles.msgContent}>
+              <div style={styles.msgContent} className={msg.role === 'assistant' ? 'markdown-body' : undefined}>
                 {msg.role === 'assistant' ? (
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 ) : (
@@ -171,7 +171,7 @@ export default function ChatPage({ contexts }: Props) {
           {streaming && streamingContent && (
             <div style={styles.assistantMsg}>
               <div style={styles.msgRole}>Agent</div>
-              <div style={styles.msgContent} className="streaming-cursor">
+              <div style={styles.msgContent} className="markdown-body streaming-cursor">
                 <ReactMarkdown>{streamingContent}</ReactMarkdown>
               </div>
             </div>

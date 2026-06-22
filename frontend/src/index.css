@@ -89,3 +89,60 @@ input, textarea, select {
   color: var(--accent);
   margin-left: 2px;
 }
+
+/* GitHub Markdown dark theme overrides */
+.markdown-body {
+  --color-fg-default: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-canvas-default: transparent;
+  --color-canvas-subtle: var(--bg-tertiary);
+  --color-border-default: var(--border);
+  --color-border-muted: var(--border);
+  --color-accent-fg: var(--accent-hover);
+  --color-neutral-muted: var(--bg-tertiary);
+  --color-danger-fg: var(--error);
+
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.markdown-body pre {
+  background: var(--bg-tertiary) !important;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.markdown-body code {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  border-color: var(--border);
+}
+
+.markdown-body table tr {
+  background: transparent;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background: rgba(36, 43, 61, 0.4);
+}
+
+.markdown-body blockquote {
+  border-left-color: var(--accent);
+  color: var(--text-secondary);
+}
+
+.markdown-body hr {
+  border-color: var(--border);
+}
+
+.markdown-body h1,
+.markdown-body h2 {
+  border-bottom-color: var(--border);
+}

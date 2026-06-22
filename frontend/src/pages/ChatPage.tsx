@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { chatApi } from '../services/api';
-import type { ContextProfile, ChatSession, ChatMessage } from '../types';
+import { chatApi, contextApi } from '../services/api';
+import type { ContextProfile, ChatSession, ChatMessage, MCPServer } from '../types';
 import ContextSwitcher from '../components/ContextSwitcher';
 import SessionSidebar from '../components/SessionSidebar';
 
@@ -20,11 +20,13 @@ export default function ChatPage({ contexts }: Props) {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [linkedServers, setLinkedServers] = useState<MCPServer[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (activeContext) {
       chatApi.getSessions(activeContext.id).then(setSessions);
+      contextApi.getLinkedServers(activeContext.id).then(setLinkedServers).catch(() => setLinkedServers([]));
     }
   }, [activeContext]);
 
@@ -120,6 +122,17 @@ export default function ChatPage({ contexts }: Props) {
             active={activeContext}
             onSwitch={handleContextSwitch}
           />
+          {linkedServers.length > 0 && (
+            <div style={styles.mcpBar}>
+              <span style={styles.mcpLabel}>MCP:</span>
+              {linkedServers.map(server => (
+                <span key={server.id} style={styles.mcpChip}>
+                  <span style={{ ...styles.mcpDot, background: server.running ? 'var(--success)' : 'var(--text-secondary)' }} />
+                  {server.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={styles.messages}>
@@ -199,6 +212,39 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.75rem 1.5rem',
     borderBottom: '1px solid var(--border)',
     background: 'var(--bg-secondary)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+  mcpBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    flexWrap: 'wrap',
+  },
+  mcpLabel: {
+    fontSize: '0.7rem',
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    fontWeight: 600,
+  },
+  mcpChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    fontSize: '0.75rem',
+    color: 'var(--text-primary)',
+    background: 'var(--bg-tertiary)',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '4px',
+    border: '1px solid var(--border)',
+  },
+  mcpDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    display: 'inline-block',
   },
   messages: {
     flex: 1,

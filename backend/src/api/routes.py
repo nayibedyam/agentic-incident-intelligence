@@ -82,6 +82,8 @@ async def delete_context(profile_id: str):
 @router.get("/context/{profile_id}/mcp-servers")
 async def get_context_mcp_servers(profile_id: str):
     servers = await get_linked_servers_for_context(profile_id)
+    for server in servers:
+        server["running"] = server["name"] in mcp_manager.running_servers
     return servers
 
 

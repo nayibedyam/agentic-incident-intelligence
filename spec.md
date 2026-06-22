@@ -58,49 +58,65 @@ An AI-powered production debugging and root cause analysis platform that acceler
 - **Server**: FastAPI with async support
 - **Port**: 8000
 
-#### 3.2.1 Agent Architecture — Tool-Use Loop
+#### 3.2.1 Agent Architecture — Tool-Use Loop with Sub-Agents
 
-The agent uses a single-LLM tool-use routing pattern rather than explicit sub-agents. Claude decides which tools to invoke based on the conversation context:
+The agent uses a single-LLM tool-use routing pattern. Claude decides which tools (including sub-agents) to invoke based on the conversation context. Sub-agents are specialized LLM calls invoked as tools — they do their own multi-step reasoning and return structured results.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    LangGraph StateGraph                        │
-│                                                              │
-│  ┌────────────────────┐                                      │
-│  │   Orchestrator     │◄───────────────────────┐             │
-│  │  (LLM + tools)     │                        │             │
-│  └────────┬───────────┘                        │             │
-│           │                                    │             │
-│    should_continue?                            │             │
-│     │         │                                │             │
-│     ▼         ▼                                │             │
-│  ┌──────┐  ┌──────────────┐                    │             │
-│  │ END  │  │ Tool Executor │────────────────────┘             │
-│  └──────┘  └──────────────┘                                  │
-│                  │                                            │
-│         ┌───────┼────────┐                                   │
-│         ▼       ▼        ▼                                   │
-│   ┌──────────┐ ┌──────┐ ┌──────────────┐                    │
-│   │Built-in  │ │ MCP  │ │  MCP Tools   │                    │
-│   │Tools     │ │Tool 1│ │  (dynamic)   │                    │
-│   │(analyze, │ │      │ │              │                    │
-│   │validate) │ │      │ │              │                    │
-│   └──────────┘ └──────┘ └──────────────┘                    │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         LangGraph StateGraph                               │
+│                                                                           │
+│  ┌────────────────────┐                                                   │
+│  │   Orchestrator     │◄────────────────────────────┐                     │
+│  │  (LLM + tools)     │                             │                     │
+│  └────────┬───────────┘                             │                     │
+│           │                                         │                     │
+│    should_continue?                                 │                     │
+│     │         │                                     │                     │
+│     ▼         ▼                                     │                     │
+│  ┌──────┐  ┌──────────────┐                         │                     │
+│  │ END  │  │ Tool Executor │─────────────────────────┘                     │
+│  └──────┘  └──────┬───────┘                                              │
+│                   │                                                       │
+│      ┌────────────┼─────────────┬──────────────┐                          │
+│      ▼            ▼             ▼              ▼                          │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐                  │
+│ │ Built-in │ │Sub-Agent │ │Sub-Agent │ │ Dynamic MCP  │                  │
+│ │  Tools   │ │(own LLM  │ │(own LLM  │ │   Tools      │                  │
+│ │          │ │  call)   │ │  call)   │ │(context-scoped)│                │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────────┘                  │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Flow:**
 1. User message → Orchestrator node (LLM call with all available tools)
 2. If LLM returns `tool_use` blocks → Tool Executor node runs them
-3. Tool results fed back to Orchestrator for next LLM call
-4. Loop continues until LLM responds with text only (no tool calls) → END
-5. Max 10 iterations as safety limit
+3. Sub-agent tools make their own LLM call(s) internally and return structured results
+4. Tool results fed back to Orchestrator for next LLM call
+5. Loop continues until LLM responds with text only (no tool calls) → END
+6. Max 10 iterations as safety limit
 
 **Built-in tools:**
 - `analyze_logs` — Structured log analysis for error patterns, anomalies, correlations
 - `validate_hypothesis` — Cross-reference root cause hypotheses against evidence
 
-**Dynamic MCP tools:** All tools from running MCP servers (e.g., JIRA search, Confluence page retrieval) are automatically available to the LLM.
+**Investigation Sub-Agents** (each makes its own LLM call for specialized reasoning):
+
+| Tool Name | Sub-Agent | What It Does |
+|-----------|-----------|-------------|
+| `correlate_logs` | Log Correlator | Parses multi-service logs, builds causal timeline, correlates by request-id/trace-id, identifies the root signal |
+| `detect_changes` | Change Detector | Analyzes recent deployments/config changes and correlates with incident timing, recommends rollbacks |
+| `analyze_metrics` | Metric Analyzer | Detects anomalies in metrics, finds correlations between metrics, identifies leading indicators and capacity issues |
+
+**Knowledge Sub-Agents** (leverage MCP tools + LLM reasoning):
+
+| Tool Name | Sub-Agent | What It Does |
+|-----------|-----------|-------------|
+| `find_similar_incidents` | Similar Incident Finder | Searches JIRA/Confluence for past incidents with matching symptoms, surfaces applicable resolutions |
+| `write_postmortem` | Post-Mortem Writer | Generates structured blameless post-mortem with timeline, root cause, action items, lessons learned |
+| `execute_runbook` | Runbook Executor | Guides through troubleshooting steps with branching logic, adapts based on findings |
+
+**Dynamic MCP tools:** Tools from MCP servers linked to the active context profile (e.g., JIRA search, Confluence page retrieval). Only servers explicitly linked to the context are available — unlinked servers' tools are hidden.
 
 #### 3.2.2 LLM Provider Support
 
@@ -543,7 +559,14 @@ agentic-incident-intelligence/
 │       │   ├── orchestrator.py       # Chat handler (streaming + non-streaming)
 │       │   ├── graph.py              # LangGraph StateGraph (orchestrator → tools → loop)
 │       │   ├── state.py              # AgentState TypedDict
-│       │   └── tools.py              # Built-in tools + MCP tool aggregation
+│       │   ├── tools.py              # Tool registry + dispatcher (built-in + sub-agents + MCP)
+│       │   └── sub_agents/
+│       │       ├── log_correlator.py       # Multi-service log correlation + timeline
+│       │       ├── change_detector.py      # Deployment/config change correlation
+│       │       ├── metric_analyzer.py      # Metric anomaly detection + correlation
+│       │       ├── similar_incident_finder.py  # JIRA/Confluence search for past incidents
+│       │       ├── postmortem_writer.py    # Structured post-mortem generation
+│       │       └── runbook_executor.py     # Step-by-step runbook guidance
 │       ├── context/
 │       │   ├── manager.py            # Context profile CRUD (SQLite)
 │       │   └── loader.py             # Context loading + MCP server startup
